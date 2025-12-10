@@ -16,16 +16,16 @@ This is a complete, production-like enterprise web system designed and implement
 ```
 vehicle-management-system/
 │
-├── app.py                  
-├── seed.py                
+├── app.py           # System back-end implementation file              
+├── seed.py          # Generate realistic test data file            
 ├── 5003project.db          
 ├── templates/              
-│   ├── login.html
-│   ├── register.html
-│   ├── user_dashboard.html
-│   ├── approver_dashboard.html
-│   ├── driver_dashboard.html
-│   └── admin_dashboard.html
+│   ├── login.html              # Front-end implementation of the login page
+│   ├── register.html           # Front-end implementation of registration
+│   ├── user_dashboard.html     # Front-end implementation of normal user
+│   ├── approver_dashboard.html # Front-end implementation of approver 
+│   ├── driver_dashboard.html   # Front-end implementation of driver 
+│   └── admin_dashboard.html    # Front-end implementation of database manager 
 ├── requirements.txt        
 └── README.md               
 ```
@@ -93,3 +93,10 @@ python app.py
 ### 6. Open your browser
 
 Go to: http://127.0.0.1:5000
+
+### 7. Notes
+
+- The eid and ename used for registration must be valid(included in the employee).
+- After registration, the uid will be displayed. Please remember the uid.
+- When logging in, each column option needs to be filled in correctly.
+- If the page is displayed abnormally, please refresh the page.
