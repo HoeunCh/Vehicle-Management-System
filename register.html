@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Management System - Register</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .register-card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .register-header {
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        .register-body {
+            padding: 2rem;
+            background: white;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            padding: 12px 20px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #3498db;
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        }
+        .btn-register {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            border: none;
+            border-radius: 10px;
+            padding: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+            color: white;
+        }
+        .btn-register:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(39, 174, 96, 0.4);
+        }
+        .form-icon {
+            position: relative;
+        }
+        .form-icon i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+        }
+        .form-icon input, .form-icon select {
+            padding-left: 45px;
+        }
+        .employee-info {
+            background: #e8f4fd;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8 col-lg-6">
+                <div class="register-card">
+                    <div class="register-header">
+                        <i class="fas fa-user-plus fa-3x mb-3"></i>
+                        <h2>Vehicle Management System</h2>
+                        <p class="mb-0">Create New Account</p>
+                    </div>
+                    <div class="register-body">
+                        <!-- 显示错误信息 -->
+                        {% if error %}
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            {{ error }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endif %}
+
+                        <!-- 显示成功信息 -->
+                        <!-- 在 register.html 中修改成功消息的显示 -->
+                        {% if success %}
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle"></i>
+                            {{ success }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                        {% endif %}
+
+                        <form method="POST" action="/register" id="registerForm">
+                            <div class="mb-3">
+                                <label class="form-label">Employee ID</label>
+                                <div class="form-icon">
+                                    <i class="fas fa-id-badge"></i>
+                                    <input type="text" class="form-control" name="eid" id="eid"
+                                           placeholder="Enter your employee ID" required>
+                                </div>
+                                <div class="form-text">Your employee ID must be valid and active in the system.</div>
+                            </div>
+
+                            <!-- 员工信息显示区域 -->
+                            <div class="employee-info" id="employeeInfo">
+                                <h6><i class="fas fa-info-circle"></i> Employee Information</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <strong>Name:</strong> <span id="employeeName">-</span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Role:</strong> <span id="employeeRole">-</span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Department:</strong> <span id="employeeDept">-</span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>User Type:</strong> <span id="userType">-</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Username</label>
+                                <div class="form-icon">
+                                    <i class="fas fa-user"></i>
+                                    <input type="text" class="form-control" name="username" id="username"
+                                           placeholder="Choose a username" required>
+                                </div>
+                                <div class="form-text">Username must be unique.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <div class="form-icon">
+                                    <i class="fas fa-lock"></i>
+                                    <input type="password" class="form-control" name="password" id="password"
+                                           placeholder="Create a password" required>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label">Confirm Password</label>
+                                <div class="form-icon">
+                                    <i class="fas fa-lock"></i>
+                                    <input type="password" class="form-control" name="confirm_password" id="confirm_password"
+                                           placeholder="Confirm your password" required>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-register w-100">
+                                <i class="fas fa-user-plus"></i> Create Account
+                            </button>
+                        </form>
+
+                        <div class="text-center mt-3">
+                            <p>Already have an account? <a href="/">Login here</a></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 实时验证员工ID
+        document.getElementById('eid').addEventListener('blur', function(e) {
+            const eid = e.target.value;
+
+            if (eid && !isNaN(eid)) {
+                // 发送AJAX请求验证员工ID
+                fetch('/check_employee', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ eid: eid })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const employeeInfo = document.getElementById('employeeInfo');
+                    if (data.exists) {
+                        // 显示员工信息
+                        document.getElementById('employeeName').textContent = data.employee.fname + ' ' + data.employee.lname;
+                        document.getElementById('employeeRole').textContent = data.employee.role;
+                        document.getElementById('employeeDept').textContent = data.employee.dname;
+                        document.getElementById('userType').textContent = data.user_type;
+                        employeeInfo.style.display = 'block';
+                    } else {
+                        employeeInfo.style.display = 'none';
+                        alert('Employee ID not found or employee is not active.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            }
+        });
+
+        // 表单提交前的验证
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm_password').value;
+            const eid = document.getElementById('eid').value;
+            const username = document.getElementById('username').value;
+
+            // 验证员工ID是否为数字
+            if (isNaN(eid) || eid.trim() === '') {
+                e.preventDefault();
+                alert('Employee ID must be a valid number');
+                return;
+            }
+
+            // 验证密码是否匹配
+            if (password !== confirmPassword) {
+                e.preventDefault();
+                alert('Passwords do not match');
+                return;
+            }
+
+            // 验证密码长度
+            if (password.length < 6) {
+                e.preventDefault();
+                alert('Password must be at least 6 characters long');
+                return;
+            }
+
+            // 验证用户名
+            if (username.trim() === '') {
+                e.preventDefault();
+                alert('Please enter a username');
+                return;
+            }
+        });
+    </script>
+</body>
+</html>
