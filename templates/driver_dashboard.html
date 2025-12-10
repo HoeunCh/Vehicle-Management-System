@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Dashboard - Vehicle Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar {
+            background: linear-gradient(180deg, #e67e22, #d35400);
+            color: white;
+            min-height: 100vh;
+            position: fixed;
+            width: 250px;
+        }
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+        .nav-link {
+            color: #ecf0f1;
+            padding: 15px 20px;
+            border-left: 4px solid transparent;
+            transition: all 0.3s;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: white;
+            background: rgba(255,255,255,0.1);
+            border-left-color: #3498db;
+        }
+        .nav-link i {
+            width: 20px;
+            margin-right: 10px;
+        }
+        .trip-card {
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s;
+        }
+        .trip-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+        .trip-card.assigned {
+            border-left: 4px solid #3498db;
+        }
+        .trip-card.in-progress {
+            border-left: 4px solid #f39c12;
+        }
+        .trip-card.completed {
+            border-left: 4px solid #27ae60;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 5px;
+        }
+        .assigned-indicator {
+            background-color: #3498db;
+        }
+        .in-progress-indicator {
+            background-color: #f39c12;
+        }
+        .completed-indicator {
+            background-color: #27ae60;
+        }
+        .stat-card {
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+        .conflict-warning {
+            border-left: 4px solid #dc3545 !important;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <div class="sidebar">
+        <div class="p-4">
+            <h4 class="text-center mb-4">
+                <i class="fas fa-car"></i><br>
+                Vehicle Management
+            </h4>
+            <div class="text-center mb-4">
+                <div class="bg-info rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                    <i class="fas fa-id-card-alt fa-lg text-white"></i>
+                </div>
+                <h6 class="mt-2 mb-1">{{ session.full_name }}</h6>
+                <small class="text-light">Driver</small>
+            </div>
+        </div>
+
+        <nav class="nav flex-column">
+            <a class="nav-link active" href="#current-trips" data-bs-toggle="tab">
+                <i class="fas fa-road"></i> Current Trips
+                {% if current_trips_count > 0 %}
+                <span class="badge bg-danger float-end">{{ current_trips_count }}</span>
+                {% endif %}
+            </a>
+            <a class="nav-link" href="#trip-history" data-bs-toggle="tab">
+                <i class="fas fa-history"></i> Trip History
+            </a>
+            <a class="nav-link" href="#schedule-view" data-bs-toggle="tab">
+                <i class="fas fa-calendar-alt"></i> Schedule View
+            </a>
+            <a class="nav-link mt-auto" href="/logout">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="tab-content">
+            <!-- Current Trips Tab -->
+            <div class="tab-pane fade show active" id="current-trips">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3><i class="fas fa-road me-2"></i>Current Driving Assignments</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-outline-primary active" data-filter="all">All</button>
+                        <button class="btn btn-outline-primary" data-filter="assigned">Assigned</button>
+                        <button class="btn btn-outline-primary" data-filter="in_progress">In Progress</button>
+                        <button class="btn btn-outline-primary" data-filter="completed">Completed</button>
+                    </div>
+                </div>
+
+                <!-- Statistics Cards -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card stat-card bg-primary text-white" data-filter="all">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h4>{{ trips|length }}</h4>
+                                        <span>Total Assignments</span>
+                                    </div>
+                                    <i class="fas fa-tasks fa-2x opacity-50"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card stat-card bg-info text-white" data-filter="assigned">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h4>{{ trips|selectattr('current_status', 'equalto', 'assigned')|list|length }}</h4>
+                                        <span>Assigned</span>
+                                    </div>
+                                    <i class="fas fa-clock fa-2x opacity-50"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card stat-card bg-warning text-white" data-filter="in_progress">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h4>{{ trips|selectattr('current_status', 'equalto', 'in_progress')|list|length }}</h4>
+                                        <span>In Progress</span>
+                                    </div>
+                                    <i class="fas fa-spinner fa-2x opacity-50"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card stat-card bg-success text-white" data-filter="completed">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <h4>{{ trips|selectattr('current_status', 'equalto', 'completed')|list|length }}</h4>
+                                        <span>Completed</span>
+                                    </div>
+                                    <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if trips %}
+                <div class="row" id="trips-container">
+                    {% for trip in trips %}
+                    <div class="col-md-6 col-lg-4 mb-4 trip-item" data-status="{{ trip.current_status }}">
+                        <div class="card trip-card {% if trip.has_conflict and trip.current_status in ['assigned', 'in_progress'] %}conflict-warning{% endif %} {% if trip.current_status == 'assigned' %}assigned{% elif trip.current_status == 'in_progress' %}in-progress{% else %}completed{% endif %}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-3">
+                                    <h5 class="card-title">
+                                        Trip #{{ trip.rid }}
+                                    </h5>
+                                    {% if trip.current_status == 'assigned' %}
+                                        <span class="badge bg-primary">
+                                            <span class="status-indicator assigned-indicator"></span>
+                                            Assigned
+                                        </span>
+                                    {% elif trip.current_status == 'in_progress' %}
+                                        <span class="badge bg-warning">
+                                            <span class="status-indicator in-progress-indicator"></span>
+                                            In Progress
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-success">
+                                            <span class="status-indicator completed-indicator"></span>
+                                            Completed
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                <!-- 时间冲突警告 -->
+                                {% if trip.has_conflict and trip.current_status in ['assigned', 'in_progress'] %}
+                                <div class="alert alert-warning alert-dismissible fade show mt-2" role="alert">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    <small><strong>Time Conflict:</strong> This trip overlaps with another assigned trip.</small>
+                                </div>
+                                {% endif %}
+
+                                <div class="mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-user me-2 text-muted"></i>
+                                        <div>
+                                            <strong>Requester:</strong><br>
+                                            <span>{{ trip.fname }} {{ trip.lname }}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-bullseye me-2 text-muted"></i>
+                                        <div>
+                                            <strong>Purpose:</strong><br>
+                                            <span>{{ trip.purpose|title }}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-map-marker-alt me-2 text-muted"></i>
+                                        <div>
+                                            <strong>Destination:</strong><br>
+                                            <span>{{ trip.destination }}</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-clock me-2 text-muted"></i>
+                                        <div>
+                                            <strong>Scheduled Time:</strong><br>
+                                            <small>{{ trip.start_time[:16] }}<br>to {{ trip.end_time[:16] }}</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-car me-2 text-muted"></i>
+                                        <div>
+                                            <strong>Assigned Vehicle:</strong><br>
+                                            <span>{{ trip.brand }} {{ trip.model }} ({{ trip.plate }})</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="d-flex align-items-center mb-3">
+                                        <i class="fas fa-users me-2 text-muted"></i>
+                                        <div>
+                                            <strong>Passengers:</strong><br>
+                                            <span>{{ trip.passenger_number }} people</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {% if trip.current_status == 'assigned' %}
+                                <div class="d-grid">
+                                    <button class="btn btn-warning" onclick="updateTripStatus({{ trip.rid }}, 'in_progress')">
+                                        <i class="fas fa-play me-1"></i> Start Trip
+                                    </button>
+                                </div>
+                                {% elif trip.current_status == 'in_progress' %}
+                                <div class="d-grid">
+                                    <button class="btn btn-success" onclick="updateTripStatus({{ trip.rid }}, 'completed')">
+                                        <i class="fas fa-flag-checkered me-1"></i> Complete Trip
+                                    </button>
+                                </div>
+                                {% endif %}
+
+                                <div class="mt-3">
+                                    <button class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#tripDetailModal{{ trip.rid }}">
+                                        <i class="fas fa-info-circle me-1"></i> View Details
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trip Detail Modal -->
+                    <div class="modal fade" id="tripDetailModal{{ trip.rid }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Trip Details #{{ trip.rid }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="row mb-3">
+                                        <div class="col-6">
+                                            <strong>Requester:</strong><br>
+                                            {{ trip.fname }} {{ trip.lname }}
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Purpose:</strong><br>
+                                            {{ trip.purpose|title }}
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <strong>Destination:</strong><br>
+                                            {{ trip.destination }}
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-6">
+                                            <strong>Start Time:</strong><br>
+                                            {{ trip.start_time }}
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>End Time:</strong><br>
+                                            {{ trip.end_time }}
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-6">
+                                            <strong>Passengers:</strong><br>
+                                            {{ trip.passenger_number }} people
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Vehicle:</strong><br>
+                                            {{ trip.brand }} {{ trip.model }} ({{ trip.plate }})
+                                        </div>
+                                    </div>
+
+                                    <!-- 添加备注显示 -->
+                                    {% if trip.notes %}
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <strong>Additional Notes:</strong><br>
+                                            <div class="bg-light p-2 rounded mt-1">
+                                                {{ trip.notes }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <strong>Current Status:</strong><br>
+                                            {% if trip.current_status == 'assigned' %}
+                                                <span class="badge bg-primary">Assigned</span>
+                                            {% elif trip.current_status == 'in_progress' %}
+                                                <span class="badge bg-warning">In Progress</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Completed</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <!-- 时间冲突警告 -->
+                                    {% if trip.has_conflict and trip.current_status in ['assigned', 'in_progress'] %}
+                                    <div class="row mt-2">
+                                        <div class="col-12">
+                                            <div class="alert alert-warning" role="alert">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                <small><strong>Time Conflict:</strong> This trip overlaps with another assigned trip.</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                    {% if trip.current_status == 'assigned' %}
+                                    <button type="button" class="btn btn-warning" onclick="updateTripStatus({{ trip.rid }}, 'in_progress')">
+                                        <i class="fas fa-play me-1"></i> Start Trip
+                                    </button>
+                                    {% elif trip.current_status == 'in_progress' %}
+                                    <button type="button" class="btn btn-success" onclick="updateTripStatus({{ trip.rid }}, 'completed')">
+                                        <i class="fas fa-flag-checkered me-1"></i> Complete Trip
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-car fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Current Driving Assignments</h4>
+                    <p class="text-muted">You don't have any driving assignments at the moment.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Trip History Tab -->
+            <div class="tab-pane fade" id="trip-history">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3><i class="fas fa-history me-2"></i>Trip History</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-outline-primary active" data-filter-history="all">All</button>
+                        <button class="btn btn-outline-primary" data-filter-history="completed">Completed</button>
+                        <button class="btn btn-outline-primary" data-filter-history="cancelled">Cancelled</button>
+                    </div>
+                </div>
+
+                {% if trips %}
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Trip ID</th>
+                                        <th>Requester</th>
+                                        <th>Purpose</th>
+                                        <th>Destination</th>
+                                        <th>Date</th>
+                                        <th>Vehicle</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for trip in trips %}
+                                    {% if trip.current_status == 'completed' or trip.current_status == 'cancelled' %}
+                                    <tr data-status="{{ trip.current_status }}">
+                                        <td><strong>#{{ trip.rid }}</strong></td>
+                                        <td>{{ trip.fname }} {{ trip.lname }}</td>
+                                        <td>{{ trip.purpose|title }}</td>
+                                        <td>{{ trip.destination }}</td>
+                                        <td>{{ trip.start_time[:10] }}</td>
+                                        <td>{{ trip.brand }} {{ trip.model }}</td>
+                                        <td>
+                                            {% if trip.current_status == 'completed' %}
+                                                <span class="badge bg-success">Completed</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Cancelled</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#historyDetailModal{{ trip.rid }}">
+                                                <i class="fas fa-eye"></i> Details
+                                            </button>
+                                        </td>
+                                    </tr>
+
+                                    <!-- History Detail Modal -->
+                                    <div class="modal fade" id="historyDetailModal{{ trip.rid }}" tabindex="-1">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title">Trip History #{{ trip.rid }}</h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="row mb-3">
+                                                        <div class="col-6">
+                                                            <strong>Requester:</strong><br>
+                                                            {{ trip.fname }} {{ trip.lname }}
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <strong>Purpose:</strong><br>
+                                                            {{ trip.purpose|title }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="row mb-3">
+                                                        <div class="col-12">
+                                                            <strong>Destination:</strong><br>
+                                                            {{ trip.destination }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="row mb-3">
+                                                        <div class="col-6">
+                                                            <strong>Scheduled Start:</strong><br>
+                                                            {{ trip.start_time }}
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <strong>Scheduled End:</strong><br>
+                                                            {{ trip.end_time }}
+                                                        </div>
+                                                    </div>
+                                                    <div class="row mb-3">
+                                                        <div class="col-6">
+                                                            <strong>Passengers:</strong><br>
+                                                            {{ trip.passenger_number }} people
+                                                        </div>
+                                                        <div class="col-6">
+                                                            <strong>Vehicle:</strong><br>
+                                                            {{ trip.brand }} {{ trip.model }} ({{ trip.plate }})
+                                                        </div>
+                                                    </div>
+
+                                                    <!-- 添加备注显示 -->
+                                                    {% if trip.notes %}
+                                                    <div class="row mb-3">
+                                                        <div class="col-12">
+                                                            <strong>Additional Notes:</strong><br>
+                                                            <div class="bg-light p-2 rounded mt-1">
+                                                                {{ trip.notes }}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endif %}
+
+                                                    <div class="row">
+                                                        <div class="col-12">
+                                                            <strong>Status:</strong><br>
+                                                            {% if trip.current_status == 'completed' %}
+                                                                <span class="badge bg-success">Completed</span>
+                                                            {% else %}
+                                                                <span class="badge bg-secondary">Cancelled</span>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                {% if trip.current_status == 'completed' %}
+                                                <button type="button" class="btn btn-outline-primary">
+                                                    <i class="fas fa-download me-1"></i> Export Details
+                                                </button>
+                                                {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-history fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Trip History Available</h4>
+                    <p class="text-muted">Your completed and cancelled trips will appear here.</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Schedule View Tab -->
+            <div class="tab-pane fade" id="schedule-view">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3><i class="fas fa-calendar-alt me-2"></i>My Schedule</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-outline-primary active" data-schedule-filter="all">All</button>
+                        <button class="btn btn-outline-primary" data-schedule-filter="upcoming">Upcoming</button>
+                        <button class="btn btn-outline-primary" data-schedule-filter="conflicts">Time Conflicts</button>
+                    </div>
+                </div>
+
+                {% if trips %}
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-hover" id="schedule-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Trip ID</th>
+                                        <th>Purpose</th>
+                                        <th>Destination</th>
+                                        <th>Start Time</th>
+                                        <th>End Time</th>
+                                        <th>Duration</th>
+                                        <th>Status</th>
+                                        <th>Time Conflict</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for trip in trips %}
+                                    {% if trip.current_status in ['assigned', 'in_progress', 'completed'] %}
+                                    <tr data-status="{{ trip.current_status }}"
+                                        data-start="{{ trip.start_time }}"
+                                        data-end="{{ trip.end_time }}">
+                                        <td><strong>#{{ trip.rid }}</strong></td>
+                                        <td>{{ trip.purpose|title }}</td>
+                                        <td>{{ trip.destination }}</td>
+                                        <td>{{ trip.start_time }}</td>
+                                        <td>{{ trip.end_time }}</td>
+                                        <td>
+                                            {% if trip.duration_hours is not none %}
+                                                {{ trip.duration_hours }} hours
+                                            {% else %}
+                                                N/A
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if trip.current_status == 'assigned' %}
+                                                <span class="badge bg-primary">Assigned</span>
+                                            {% elif trip.current_status == 'in_progress' %}
+                                                <span class="badge bg-warning">In Progress</span>
+                                            {% else %}
+                                                <span class="badge bg-success">Completed</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if trip.has_conflict and trip.current_status in ['assigned', 'in_progress'] %}
+                                                <span class="badge bg-danger">Conflict</span>
+                                            {% else %}
+                                                <span class="badge bg-success">No Conflict</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-calendar-times fa-4x text-muted mb-3"></i>
+                    <h4 class="text-muted">No Scheduled Trips</h4>
+                    <p class="text-muted">Your scheduled trips will appear here.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Vehicle Information Modal -->
+    <div class="modal fade" id="vehicleInfoModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Complete Trip - Vehicle Information</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="vehicleInfoForm">
+                        <input type="hidden" id="completingTripId">
+                        <div class="mb-3">
+                            <label for="currentMileage" class="form-label">Current Mileage</label>
+                            <input type="number" class="form-control" id="currentMileage" required min="0" step="1">
+                            <div class="form-text">Enter the current odometer reading.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="fuel" class="form-label">Current Fuel Level</label>
+                            <input type="number" class="form-control" id="fuel" required min="0" max="100" step="0.01">
+                            <div class="form-text">Enter the current fuel level as a percentage (e.g., 75.50 for 75.5%).</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="submitVehicleInfo()">
+                        <i class="fas fa-flag-checkered me-1"></i> Complete Trip
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Modal -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" data-bs-backdrop="static">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Processing...</span>
+                    </div>
+                    <p>Updating trip status...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function updateTripStatus(tripId, status) {
+            const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+
+            if (status === 'completed') {
+                // 对于完成行程，先显示车辆信息收集模态框
+                document.getElementById('completingTripId').value = tripId;
+                const vehicleInfoModal = new bootstrap.Modal(document.getElementById('vehicleInfoModal'));
+                vehicleInfoModal.show();
+            } else {
+                // 对于开始行程，直接更新状态
+                loadingModal.show();
+                sendTripStatusUpdate(tripId, status, null, null);
+            }
+        }
+
+        function submitVehicleInfo() {
+            const tripId = document.getElementById('completingTripId').value;
+            const currentMileage = document.getElementById('currentMileage').value;
+            const fuel = document.getElementById('fuel').value;
+
+            // 验证表单
+            if (!currentMileage || !fuel) {
+                alert('Please fill in all required vehicle information.');
+                return;
+            }
+
+            // 验证油量范围 (0-100)
+            if (fuel < 0 || fuel > 100) {
+                alert('Fuel level must be between 0 and 100.');
+                return;
+            }
+
+            // 关闭车辆信息模态框
+            const vehicleInfoModal = bootstrap.Modal.getInstance(document.getElementById('vehicleInfoModal'));
+            vehicleInfoModal.hide();
+
+            // 显示加载模态框
+            const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+            loadingModal.show();
+
+            // 发送更新请求
+            sendTripStatusUpdate(tripId, 'completed', currentMileage, fuel);
+        }
+
+        function sendTripStatusUpdate(tripId, status, currentMileage, fuel) {
+            const requestData = {
+                trip_id: tripId,
+                status: status
+            };
+
+            // 如果是完成行程，添加车辆信息
+            if (status === 'completed') {
+                requestData.current_mileage = currentMileage;
+                requestData.fuel = fuel;
+            }
+
+            fetch('/driver/update_trip_status', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(requestData)
+            })
+            .then(response => response.json())
+            .then(result => {
+                const loadingModal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+                if (loadingModal) loadingModal.hide();
+
+                if (result.success) {
+                    if (status === 'in_progress') {
+                        alert('Trip started successfully!');
+                    } else {
+                        alert('Trip completed successfully! Vehicle information recorded.');
+                        // 重置表单
+                        document.getElementById('vehicleInfoForm').reset();
+                    }
+                    location.reload();
+                } else {
+                    alert('Operation failed: ' + result.message);
+                }
+            })
+            .catch(error => {
+                const loadingModal = bootstrap.Modal.getInstance(document.getElementById('loadingModal'));
+                if (loadingModal) loadingModal.hide();
+                alert('Network error, please try again');
+            });
+        }
+
+        // 统一的过滤函数
+        function filterTrips(filter) {
+            document.querySelectorAll('#trips-container .trip-item').forEach(item => {
+                const status = item.getAttribute('data-status');
+
+                if (filter === 'all') {
+                    item.style.display = '';
+                } else {
+                    if (status === filter) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        // Filter functionality for current trips
+        document.querySelectorAll('[data-filter]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const filter = this.getAttribute('data-filter');
+
+                // Update button states
+                document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                // Filter trip cards
+                filterTrips(filter);
+            });
+        });
+
+        // 统计卡片点击事件
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.addEventListener('click', function() {
+                const filter = this.getAttribute('data-filter');
+
+                // 更新按钮状态
+                document.querySelectorAll('[data-filter]').forEach(btn => {
+                    btn.classList.remove('active');
+                    if (btn.getAttribute('data-filter') === filter) {
+                        btn.classList.add('active');
+                    }
+                });
+
+                // 执行过滤
+                filterTrips(filter);
+            });
+        });
+
+        // Filter functionality for trip history
+        document.querySelectorAll('[data-filter-history]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const filter = this.getAttribute('data-filter-history');
+
+                // Update button states
+                document.querySelectorAll('[data-filter-history]').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                // Filter history table rows
+                document.querySelectorAll('#trip-history tbody tr').forEach(row => {
+                    if (filter === 'all') {
+                        row.style.display = '';
+                    } else {
+                        const status = row.getAttribute('data-status');
+                        if (status === filter) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    }
+                });
+            });
+        });
+
+        // 日程视图过滤功能
+        document.querySelectorAll('[data-schedule-filter]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const filter = this.getAttribute('data-schedule-filter');
+
+                // 更新按钮状态
+                document.querySelectorAll('[data-schedule-filter]').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                // 过滤日程表格
+                const rows = document.querySelectorAll('#schedule-table tbody tr');
+                const now = new Date();
+
+                rows.forEach(row => {
+                    const status = row.getAttribute('data-status');
+                    const startTime = new Date(row.getAttribute('data-start'));
+                    const endTime = new Date(row.getAttribute('data-end'));
+                    const hasConflict = row.querySelector('.badge.bg-danger') !== null;
+
+                    let showRow = true;
+
+                    switch(filter) {
+                        case 'upcoming':
+                            showRow = endTime >= now && status !== 'completed';
+                            break;
+                        case 'conflicts':
+                            showRow = hasConflict && status !== 'completed';
+                            break;
+                        case 'all':
+                        default:
+                            showRow = true;
+                            break;
+                    }
+
+                    row.style.display = showRow ? '' : 'none';
+                });
+            });
+        });
+
+        // Initialize with current trips count
+        document.addEventListener('DOMContentLoaded', function() {
+            const currentTripsCount = {{ trips|selectattr('current_status', 'ne', 'completed')|list|length }};
+            console.log('Current trips count:', currentTripsCount);
+        });
+    </script>
+</body>
+</html>
